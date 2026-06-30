@@ -3,8 +3,9 @@ import { ApiError } from '../utils/ApiError.js';
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { User } from '../models/user.model.js';
-import {Subscription} from '../models/subscription.model.js';
+import { Subscription } from '../models/subscription.model.js';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import {
     validateRequiredFields,
     validateEmail,
@@ -374,7 +375,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 });
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-    const coverimageLocalPath = req.file.path;
+    const coverimageLocalPath = req.file?.path;
     if (!coverimageLocalPath) {
         throw new ApiError(400, "Cover image is required.");
     }
@@ -415,25 +416,35 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
     const channel = await User.aggregate([
         { $match: { username: username?.toLowerCase().trim() } },
-        {$lookup: { from : "subscriptions", 
-            localField: "_id", 
-            foreignField: "channelId",
-             as: "subscribers" }},
-        {$lookup: { from : "subscriptions", 
-            localField: "_id", 
-            foreignField: "subscriberId",
-            as: "subscribedTo" }},
-        {$addFields: {
-            subscribersCount: { $size: "$subscribers" },
-            subscribedToCount: { $size: "$subscribedTo" },
-            isSubscribed:{
-                $cond: {
-                    if: { $in: [req.user._id, "$subscribers.subscriberId"] },
-                    then: true,
-                    else: false
-                }
-            },
-        }},
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: { $size: "$subscribers" },
+                subscribedToCount: { $size: "$subscribedTo" },
+                isSubscribed: {
+                    $cond: {
+                        if: { $in: [req.user._id, "$subscribers.subscriber"] },
+                        then: true,
+                        else: false
+                    }
+                },
+            }
+        },
         { $project: { password: 0, refreshtoken: 0, subscribers: 0, subscribedTo: 0 } }
     ]);
 
@@ -448,6 +459,74 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     ));
 });
 
+const SubscribeToChannel = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+    if (!username) {
+        throw new ApiError(400, "Username is required.");
+    }
+    const channel = await User.findOne({ username: username.toLowerCase().trim() });
+    if (!channel) {
+        throw new ApiError(404, "Channel not found.");
+    }
+    if (channel._id.toString() === req.user._id.toString()) {
+        throw new ApiError(400, "You cannot subscribe to your own channel.");
+    }
+    if (!mongoose.isValidObjectId(channel._id)) {
+        throw new ApiError(400, "Invalid channel ID.");
+    }
+    const channel = await User.findById(channel._id);
+    if (!channel) {
+        throw new ApiError(404, "Channel not found.");
+    }
+
+    const existingSubscription = await Subscription.findOne({
+        subscriber: req.user._id,
+        channel: channel._id
+    });
+
+    if (existingSubscription) {
+        throw new ApiError(409, "Already subscribed to this channel.");
+    }
+    const subscription = await Subscription.create({
+        subscriber: req.user._id,
+        channel: channel._id
+    });
+
+    return res.status(201).json(new ApiResponse(
+        201,
+        subscription,
+        "Subscribed to channel successfully."
+    ));
+});
+
+const UnsubscribeFromChannel = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+    if (!username) {
+        throw new ApiError(400, "Username is required.");
+    }
+    const channel = await User.findOne({ username: username.toLowerCase().trim() });
+    if (!channel) {
+        throw new ApiError(404, "Channel not found.");
+    }
+    if (!mongoose.isValidObjectId(channel._id)) {
+        throw new ApiError(400, "Invalid channel ID.");
+    }
+
+    const subscription = await Subscription.findOneAndDelete({
+        subscriber: req.user._id,
+        channel: channel._id
+    });
+
+    if (!subscription) {
+        throw new ApiError(404, "Subscription not found.");
+    }
+
+    return res.status(200).json(new ApiResponse(
+        200,
+        null,
+        "Unsubscribed from channel successfully."
+    ));
+});
 export {
     registerUser,
     loginUser,
@@ -459,5 +538,7 @@ export {
     updateUseremail,
     updateUserAvatar,
     updateUserCoverImage,
-    getUserChannelProfile
+    getUserChannelProfile,
+    SubscribeToChannel,
+    UnsubscribeFromChannel
 };

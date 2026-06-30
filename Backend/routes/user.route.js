@@ -12,7 +12,10 @@ import {
     updateUserAvatar,
     updateUserCoverImage,
     updateUseremail,
-    updateUserfullName
+    updateUserfullName,
+    SubscribeToChannel,
+    UnsubscribeFromChannel,
+    getChannelProfile
 } from '../controllers/user.controller.js';
 
 router.route('/register').post(
@@ -76,6 +79,20 @@ router.route('/updatecoverimage').put(
     verifyJWT,
     upload.single('coverimage'),
     updateUserCoverImage
+);
+
+router.route('/subscribe/:username').post(
+    verifyJWT,
+    SubscribeToChannel
+);
+
+router.route('/unsubscribe/:username').post(
+    verifyJWT,
+    UnsubscribeFromChannel
+);
+
+router.route('/channel/:username').get(
+    getUserChannelProfile
 );
 
 console.log("User routes loaded");
