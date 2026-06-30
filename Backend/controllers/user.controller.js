@@ -1,6 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
-import { uploadOnCloudinary } from '../utils/cloudinary.js';
+import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { User } from '../models/user.model.js';
 import jwt from 'jsonwebtoken';
@@ -279,7 +279,7 @@ const updatePassword = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User not found.");
     }
 
-    if(!await user.isPasswordCorrect(oldPassword)) {
+    if (!await user.isPasswordCorrect(oldPassword)) {
         throw new ApiError(401, "Old password is incorrect.");
     }
 
@@ -287,7 +287,7 @@ const updatePassword = asyncHandler(async (req, res) => {
 
     user.password = newPassword;
     await user.save();
-    
+
     return res.status(200).json(new ApiResponse(
         200,
         null,
@@ -303,7 +303,7 @@ const updateUserfullName = asyncHandler(async (req, res) => {
 
     validateFullName(fullname);
 
-    const user = await User.findByIdAndUpdate(req.user._id, {$set: { fullname } }, { new: true }).select("-password -refreshtoken");
+    const user = await User.findByIdAndUpdate(req.user._id, { $set: { fullname } }, { new: true }).select("-password -refreshtoken");
     if (!user) {
         throw new ApiError(404, "User not found.");
     }
@@ -327,7 +327,7 @@ const updateUseremail = asyncHandler(async (req, res) => {
         throw new ApiError(409, "Email is already in use.");
     }
 
-    const user = await User.findByIdAndUpdate(req.user._id, {$set: { email } }, { new: true }).select("-password -refreshtoken");
+    const user = await User.findByIdAndUpdate(req.user._id, { $set: { email } }, { new: true }).select("-password -refreshtoken");
     if (!user) {
         throw new ApiError(404, "User not found.");
     }
@@ -339,15 +339,29 @@ const updateUseremail = asyncHandler(async (req, res) => {
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-    const avatarLocalPath = req.files?.avatar?.[0]?.path;
+    const avatarLocalPath = req.file?.path;
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar is required.");
+    }
+
+    let user = await User.findById(req.user._id);
+    if (!user) {
+        throw new ApiError(404, "User not found.");
+    }
+
+    // Delete the old avatar from Cloudinary if it exists
+    if (user.avatar) {
+        const publicId = user.avatar
+            .split("/upload/")[1]        // v1782819739/uploads/tudmuibnbbbmucfy8e7x.jpg
+            .replace(/^v\d+\//, "")      // uploads/tudmuibnbbbmucfy8e7x.jpg
+            .replace(/\.[^/.]+$/, "");   // uploads/tudmuibnbbbmucfy8e7x
+        await deleteFromCloudinary(publicId);
     }
 
     const avatar = await uploadOnCloudinary(avatarLocalPath);
     validateCloudinaryUpload(avatar);
 
-    const user = await User.findByIdAndUpdate(req.user._id, { $set: { avatar: avatar.secure_url } }, { new: true }).select("-password -refreshtoken");
+    user = await User.findByIdAndUpdate(req.user._id, { $set: { avatar: avatar.secure_url } }, { new: true }).select("-password -refreshtoken");
     if (!user) {
         throw new ApiError(404, "User not found.");
     }
@@ -359,15 +373,29 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 });
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-    const coverimageLocalPath = req.files?.coverimage?.[0]?.path;
+    const coverimageLocalPath = req.file.path;
     if (!coverimageLocalPath) {
         throw new ApiError(400, "Cover image is required.");
     }
 
-    const coverimage = await uploadOnCloudinary(coverimageLocalPath);
+    let coverimage = await uploadOnCloudinary(coverimageLocalPath);
     validateCloudinaryUpload(coverimage);
 
-    const user = await User.findByIdAndUpdate(req.user._id, { $set: { coverimage: coverimage.secure_url } }, { new: true }).select("-password -refreshtoken");
+    let user = await User.findById(req.user._id);
+    if (!user) {
+        throw new ApiError(404, "User not found.");
+    }
+    //deleteprevious cover image from cloudinary if it exists
+    if (user.coverimage) {
+        const publicId = user.coverimage
+            .split("/upload/")[1]        // v1782819739/uploads/tudmuibnbbbmucfy8e7x.jpg
+            .replace(/^v\d+\//, "")      // uploads/tudmuibnbbbmucfy8e7x.jpg
+            .replace(/\.[^/.]+$/, "");   // uploads/tudmuibnbbbmucfy8e7x
+        await deleteFromCloudinary(publicId);
+    }
+
+
+    user = await User.findByIdAndUpdate(req.user._id, { $set: { coverimage: coverimage.secure_url } }, { new: true }).select("-password -refreshtoken");
     if (!user) {
         throw new ApiError(404, "User not found.");
     }
