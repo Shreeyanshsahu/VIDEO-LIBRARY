@@ -1,8 +1,19 @@
-import {Router} from 'express';
+import { Router } from 'express';
 const router = Router();
 import upload from '../middlewares/multer.middleware.js';
-import { registerUser,loginUser,logoutUse,refreshToken } from '../controllers/user.controller.js';
 import verifyJWT from '../middlewares/auth.middleware.js';
+import {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshToken,
+    getCurrentUser,
+    updatePassword,
+    updateUserAvatar,
+    updateUserCoverImage,
+    updateUseremail,
+    updateUserfullName
+} from '../controllers/user.controller.js';
 
 router.route('/register').post(
     upload.fields([
@@ -10,7 +21,7 @@ router.route('/register').post(
         { name: 'coverimage', maxCount: 1 }
     ])
     // , for multipart/form-data handling, uncomment the above lines and use upload.fields() middleware
-    ,registerUser
+    , registerUser
 );
 
 //login user route
@@ -30,6 +41,41 @@ router.route('/logoutuser').post(
 router.route('/refresh-token').get(
     verifyJWT,
     refreshToken
+);
+
+
+router.route('/currentuser').get(
+    verifyJWT,
+    getCurrentUser
+);
+
+
+//put request instead of post request for updating user details
+router.route('/updateemail').put(
+    verifyJWT,
+    updateUseremail
+);
+
+router.route('/updatefullname').put(
+    verifyJWT,
+    updateUserfullName
+);
+
+router.route('/updatepassword').put(
+    verifyJWT,
+    updatePassword
+);
+
+router.route('/updateavatar').put(
+    verifyJWT,
+    upload.single('avatar'),
+    updateUserAvatar
+);
+
+router.route('/updatecoverimage').put(
+    verifyJWT,
+    upload.single('coverimage'),
+    updateUserCoverImage
 );
 
 console.log("User routes loaded");
