@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { User } from '../models/user.model.js';
+import {Subscription} from '../models/subscription.model.js';
 import jwt from 'jsonwebtoken';
 import {
     validateRequiredFields,
@@ -406,4 +407,57 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     ));
 });
 
-export { registerUser, loginUser, logoutUser, refreshToken, updatePassword, getCurrentUser, updateUserfullName, updateUseremail, updateUserAvatar, updateUserCoverImage };
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+    if (!username?.trim()) {
+        throw new ApiError(400, "Username is required.");
+    }
+
+    const channel = await User.aggregate([
+        { $match: { username: username?.toLowerCase().trim() } },
+        {$lookup: { from : "subscriptions", 
+            localField: "_id", 
+            foreignField: "channelId",
+             as: "subscribers" }},
+        {$lookup: { from : "subscriptions", 
+            localField: "_id", 
+            foreignField: "subscriberId",
+            as: "subscribedTo" }},
+        {$addFields: {
+            subscribersCount: { $size: "$subscribers" },
+            subscribedToCount: { $size: "$subscribedTo" },
+            isSubscribed:{
+                $cond: {
+                    if: { $in: [req.user._id, "$subscribers.subscriberId"] },
+                    then: true,
+                    else: false
+                }
+            },
+        }},
+        { $project: { password: 0, refreshtoken: 0, subscribers: 0, subscribedTo: 0 } }
+    ]);
+
+    if (!channel.length) {
+        throw new ApiError(404, "Channel not found.");
+    }
+
+    return res.status(200).json(new ApiResponse(
+        200,
+        channel[0],
+        "Channel profile fetched successfully."
+    ));
+});
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshToken,
+    updatePassword,
+    getCurrentUser,
+    updateUserfullName,
+    updateUseremail,
+    updateUserAvatar,
+    updateUserCoverImage,
+    getUserChannelProfile
+};
