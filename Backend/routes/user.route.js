@@ -86,7 +86,7 @@ router.route('/subscribe/:username').post(
     SubscribeToChannel
 );
 
-router.route('/unsubscribe/:username').post(
+router.route('/unsubscribe/:username').delete(
     verifyJWT,
     UnsubscribeFromChannel
 );
