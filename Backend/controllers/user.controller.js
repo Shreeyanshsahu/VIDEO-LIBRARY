@@ -96,9 +96,9 @@ const registerUser = asyncHandler(async (req, res) => {
     const coverimageLocalPath = req.files?.coverimage?.[0]?.path;
 
     if (!avatarLocalPath) {
-        throw new ApiError(400, "Avatar and cover image are required. for this website");
+        throw new ApiError(400, "Avatar is required. for this website");
     }
-
+    validateCloudinaryUpload(await uploadOnCloudinary(avatarLocalPath));
     const avatar = avatarLocalPath
         ? await uploadOnCloudinary(avatarLocalPath)
         : null;
@@ -117,7 +117,8 @@ const registerUser = asyncHandler(async (req, res) => {
             coverimage: coverimage?.secure_url || ""
         }
     )
-    const createdUser = await User.findById(user._id).select("-password -refreshToken");
+    
+    const createdUser = await User.findById(user._id).select("-password -refreshtoken");
     if (!createdUser) {
         throw new ApiError(500, "User creation failed.");
     }
