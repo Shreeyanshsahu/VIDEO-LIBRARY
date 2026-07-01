@@ -146,16 +146,17 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
-    email = email.toLowerCase();
-    username = username.toLowerCase();
-    if (!username && !email) {
+    if (!email && !username) {
         throw new ApiError(400, "Username or email is required.");
     }
+
+    const normalizedemail = email ? email.toLowerCase() : null;
+    const normalizedusername = username ? username.toLowerCase() : null;
     if (!password) {
         throw new ApiError(400, "Password is required.");
     }
 
-    const user = await User.findOne({ $or: [{ email }, { username }] });// find any of those 2 
+    const user = await User.findOne({ $or: [{ email: normalizedemail }, { username: normalizedusername }] });// find any of those 2 
     if (!user) {
         throw new ApiError(404, "User does not exist.");
     }
