@@ -93,6 +93,7 @@ router.route('/unsubscribe/:username').delete(
 );
 
 router.route('/channel/:username').get(
+    verifyJWT,
     getUserChannelProfile
 );
 
