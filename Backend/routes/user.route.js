@@ -15,7 +15,8 @@ import {
     updateUserfullName,
     SubscribeToChannel,
     UnsubscribeFromChannel,
-    getChannelProfile
+    getUserChannelProfile,
+    getwatchHistory
 } from '../controllers/user.controller.js';
 
 router.route('/register').post(
@@ -54,28 +55,28 @@ router.route('/currentuser').get(
 
 
 //put request instead of post request for updating user details
-router.route('/updateemail').put(
+router.route('/updateemail').patch(
     verifyJWT,
     updateUseremail
 );
 
-router.route('/updatefullname').put(
+router.route('/updatefullname').patch(
     verifyJWT,
     updateUserfullName
 );
 
-router.route('/updatepassword').put(
+router.route('/updatepassword').patch(
     verifyJWT,
     updatePassword
 );
 
-router.route('/updateavatar').put(
+router.route('/updateavatar').patch(
     verifyJWT,
     upload.single('avatar'),
     updateUserAvatar
 );
 
-router.route('/updatecoverimage').put(
+router.route('/updatecoverimage').patch(
     verifyJWT,
     upload.single('coverimage'),
     updateUserCoverImage
@@ -95,5 +96,9 @@ router.route('/channel/:username').get(
     getUserChannelProfile
 );
 
+router.route('/watchhistory').get(
+    verifyJWT,
+    getwatchHistory
+);
 console.log("User routes loaded");
 export default router;

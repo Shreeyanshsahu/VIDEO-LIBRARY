@@ -34,7 +34,11 @@ const userSchema = new Schema(
             required: [true, 'Password is required']
         }, refreshtoken: {
             type: String,
-        },
+        },role:{
+            type: String,
+            enum: ["USER", "ADMIN","PAIDMEMBER"],
+            default: "USER"
+        }
     }, {
     timestamps: true
 }

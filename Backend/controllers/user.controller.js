@@ -474,7 +474,7 @@ const SubscribeToChannel = asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(channel._id)) {
         throw new ApiError(400, "Invalid channel ID.");
     }
-    const channel = await User.findById(channel._id);
+    channel = await User.findById(channel._id);
     if (!channel) {
         throw new ApiError(404, "Channel not found.");
     }
@@ -527,6 +527,59 @@ const UnsubscribeFromChannel = asyncHandler(async (req, res) => {
         "Unsubscribed from channel successfully."
     ));
 });
+
+const getwatchHistory = asyncHandler(async (req, res) => {
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: mongoose.Types.ObjectId(req.user._id)
+                // Convert the user ID to a MongoDB ObjectId for matching
+                // moongoose.Types.ObjectId() is used to convert a
+                //  string representation of an ObjectId 
+                // into an actual ObjectId type that MongoDB can work with.
+                // in user.findById(req.user._id) we can use string representation as behind the scenes
+                //  mongoose will convert it to ObjectId type
+                //  but in aggregate we need to convert it to ObjectId type explicitly.
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistoryDetails",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "ownerDetails",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullname: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        },$addFields: {
+                            owner: { $arrayElemAt: ["$ownerDetails", 0] }
+                        }
+                    },
+                ]
+            }
+        },
+    ]);
+    return res.status(200).json(new ApiResponse(
+        200,
+        user[0].watchHistoryDetails,
+        "User watch history fetched successfully."
+    ));
+});
+
+
 export {
     registerUser,
     loginUser,
@@ -540,5 +593,6 @@ export {
     updateUserCoverImage,
     getUserChannelProfile,
     SubscribeToChannel,
-    UnsubscribeFromChannel
+    UnsubscribeFromChannel,
+    getwatchHistory
 };
