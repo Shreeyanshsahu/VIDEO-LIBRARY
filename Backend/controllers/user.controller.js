@@ -98,15 +98,15 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar is required. for this website");
     }
-    validateCloudinaryUpload(await uploadOnCloudinary(avatarLocalPath));
     const avatar = avatarLocalPath
         ? await uploadOnCloudinary(avatarLocalPath)
         : null;
+    validateCloudinaryUpload(avatar);
 
     const coverimage = coverimageLocalPath
         ? await uploadOnCloudinary(coverimageLocalPath)
         : null;
-
+    validateCloudinaryUpload(coverimage);
     const user = await User.create(
         {
             username: username.toLowerCase().trim(),
@@ -117,7 +117,7 @@ const registerUser = asyncHandler(async (req, res) => {
             coverimage: coverimage?.secure_url || ""
         }
     )
-    
+
     const createdUser = await User.findById(user._id).select("-password -refreshtoken");
     if (!createdUser) {
         throw new ApiError(500, "User creation failed.");
@@ -146,6 +146,8 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
+    email = email.toLowerCase();
+    username = username.toLowerCase();
     if (!username && !email) {
         throw new ApiError(400, "Username or email is required.");
     }
@@ -465,7 +467,7 @@ const SubscribeToChannel = asyncHandler(async (req, res) => {
     if (!username) {
         throw new ApiError(400, "Username is required.");
     }
-    const channel = await User.findOne({ username: username.toLowerCase().trim() });
+    let channel = await User.findOne({ username: username.toLowerCase().trim() });
     if (!channel) {
         throw new ApiError(404, "Channel not found.");
     }
@@ -475,7 +477,6 @@ const SubscribeToChannel = asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(channel._id)) {
         throw new ApiError(400, "Invalid channel ID.");
     }
-    channel = await User.findById(channel._id);
     if (!channel) {
         throw new ApiError(404, "Channel not found.");
     }
@@ -533,7 +534,7 @@ const getwatchHistory = asyncHandler(async (req, res) => {
     const user = await User.aggregate([
         {
             $match: {
-                _id: mongoose.Types.ObjectId(req.user._id)
+                _id: new mongoose.Types.ObjectId(req.user._id)
                 // Convert the user ID to a MongoDB ObjectId for matching
                 // moongoose.Types.ObjectId() is used to convert a
                 //  string representation of an ObjectId 
@@ -565,10 +566,12 @@ const getwatchHistory = asyncHandler(async (req, res) => {
                                     }
                                 }
                             ]
-                        },$addFields: {
+                        }
+                    }, {
+                        $addFields: {
                             owner: { $arrayElemAt: ["$ownerDetails", 0] }
                         }
-                    },
+                    }
                 ]
             }
         },
