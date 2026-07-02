@@ -31,7 +31,7 @@ const videoSchema = new Schema(
             default: []
         },
         duration: {
-            type: String,//cloudinary duration
+            type: String,//cloufareR2 duration
             required: true
         },
         isPublished: {
